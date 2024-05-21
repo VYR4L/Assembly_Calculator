@@ -17,12 +17,11 @@ extern main
 
 section .data
     ; Arquivos que armazenarão cada operação
-    file_name_p1    : db "resutaldo operação (", 0
-    file_name_p2    : db ").txt"
-    open_mode       : db "w", 0  ; Abertura para escrita, cria um novo arquivo ou sobrescreve um arquivo existente
+    file_name       : db "resultados.txt"
+    open_mode       : db "a", 0  ; Read/Write, cria o arquivo se não existe, posiciona o ponteiro no fim do arquivo
 
     ; Input inicial do arquivo, depois o formata em pf, char, pf
-    operation_input  : db "Insira a operação (número (a)dição/(s)ubtração/(m)ultiplicação/(d)ivisão/(e)xponenciação número: )", 0
+    operation_input  : db "Insira a operação (número (a)dição/(s)ubtração/(m)ultiplicação/(d)ivisão/(e)xponenciação número) : ", 0
     operation_inputL : equ $ - operation_input
 
     param_input     : db "%f %c %f", 0

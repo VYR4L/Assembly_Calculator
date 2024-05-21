@@ -22,12 +22,11 @@ extern exponentiation_function
 
 section .data
     ; Arquivos que armazenarão cada operação
-    file_name_p1    : db "resutaldo operação (", 0
-    file_name_p2    : db ").txt"
-    open_mode       : db "w", 0  ; Abertura para escrita, cria um novo arquivo ou sobrescreve um arquivo existente
+    file_name       : db "resultados.txt", 0
+    open_mode       : db "a", 0  ; Read/Write, cria o arquivo se não existe, posiciona o ponteiro no fim do arquivo
 
     ; Input inicial do arquivo, depois o formata em pf, char, pf
-    operation_input  : db "Insira a operação (número (a)dição/(s)ubtração/(m)ultiplicação/(d)ivisão/(e)xponenciação número: )", 0
+    operation_input  : db "Insira a operação (número (a)dição/(s)ubtração/(m)ultiplicação/(d)ivisão/(e)xponenciação número) : ", 0
     operation_inputL : equ $ - operation_input
 
     param_input     : db "%f %c %f", 0
@@ -50,24 +49,14 @@ section .text
 main:
     push rbp
     mov rbp, rsp
-
     sub rsp, 0x20
 
     ; Abrir arquivo
-    mov rdi, file_name_p1
-    mov rsi, recognize_file
+    lea rdi, [file_name]
+    lea rsi, [open_mode]
     call fopen
-    mov qword [write_file], rax
 
-    cmp rax, 0
-    jz file_error
-
-    mov rdi, operation_input
-    call printf
-
-    lea rsi, [rsp+10]
-    mov rdi, param_input
-    call scanf
+    mov [recognize_file], rax
 
     mov rax, 1
     mov rdi, 1
@@ -90,8 +79,8 @@ main:
     cmp eax, 0x61
     je sum
 
-    cmp eax, 0x71
-    jp subtraction
+    cmp eax, 0x73
+    je subtraction
 
     cmp eax, 0x6d
     je multiply
@@ -102,7 +91,8 @@ main:
     cmp eax, 0x65
     je exponentiation
 
-    jmp final_result
+    ; Caso de operação inválida
+    jmp invalid_operation
 
     sum:
         movss xmm0, DWORD [rbp-16]
@@ -129,7 +119,7 @@ main:
         mov BYTE [rbp-5], 0x2d
 
         jmp final_result
-        
+
     multiply:
         movss xmm0, DWORD [rbp-16]
         mov eax, DWORD [rbp-12]
@@ -154,13 +144,14 @@ main:
         mov DWORD [rbp-4], eax
         mov BYTE [rbp-5], 0x2f
 
+        cmp DWORD [rbp-16], 0
         je division_by_zero
 
         jmp final_result
 
-        division_by_zero:
-            mov r8, 1
-            jmp final_result
+    division_by_zero:
+        mov r8, 1
+        jmp final_result
 
     exponentiation:
         movss xmm0, DWORD [rbp-16]
@@ -171,9 +162,32 @@ main:
 
         movd eax, xmm0
         mov DWORD [rbp-4], eax
-        mov BYTE [rbp-5], 0x2e
+        mov BYTE [rbp-5], 0x5e
 
         jmp final_result
+
+    invalid_operation:
+        
+        mov rdi, [recognize_file]
+        mov rsi, output_error
+
+
+        movss xmm0, DWORD [rbp-16]
+        cvtss2sd xmm0, xmm0
+        movq rdx, xmm0
+
+        movzx eax, BYTE [rbp-17]
+        movsx eax, al
+        mov r8d, eax
+
+        movss xmm1, DWORD [rbp-12]
+        cvtss2sd xmm1, xmm1
+        movq r9, xmm1
+        
+        movsx edx, BYTE [rbp-17]
+	    mov rax, 0x03        
+        call fprintf
+        jmp end
 
     final_result:
         pxor xmm1, xmm1
@@ -203,20 +217,24 @@ main:
         cmp r8, 1
         je file_error
 
-    ; Escrever arquivo
-    mov rax, qword [write_file]
-    mov rsi, param_input
-    call fprintf
+        ; Escrever arquivo
+        mov rdi, [recognize_file]
+        mov rsi, output
+        mov rax, 0x03
+        call fprintf
 
-    ; Fecha arquivo
-    mov rdi, qword [write_file]
-    call fclose
+        ; Fecha arquivo
+        mov rdi, [recognize_file]
+        call fclose
 
-exit:
+end:
     xor rdi, rdi
     call exit
 
 file_error:
-    mov rdi, output_error
-    call printf
-    jmp exit
+    mov rdi, [recognize_file]
+    lea rsi, [output_error]
+    mov rax, 0x04
+
+    call fprintf
+    jmp end
