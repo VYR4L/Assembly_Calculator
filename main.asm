@@ -7,8 +7,8 @@
 ; ./programa_executavel.
 
 extern printf
-extern exit
 extern fprintf
+extern exit
 extern scanf
 extern fopen
 extern fclose
@@ -167,10 +167,8 @@ main:
         jmp final_result
 
     invalid_operation:
-        
         mov rdi, [recognize_file]
         mov rsi, output_error
-
 
         movss xmm0, DWORD [rbp-16]
         cvtss2sd xmm0, xmm0
@@ -187,7 +185,7 @@ main:
         movsx edx, BYTE [rbp-17]
 	    mov rax, 0x03        
         call fprintf
-        jmp end
+        jmp close_file
 
     final_result:
         pxor xmm1, xmm1
@@ -227,14 +225,25 @@ main:
         mov rdi, [recognize_file]
         call fclose
 
-end:
-    xor rdi, rdi
-    call exit
+    file_error:
+        mov rdi, [recognize_file]
+        lea rsi, [output_error]
+        mov rax, 0x04
 
-file_error:
+        call fprintf
+        jmp end
+
+close_file:
+    ; Fecha arquivo
     mov rdi, [recognize_file]
-    lea rsi, [output_error]
-    mov rax, 0x04
+    call fclose
 
-    call fprintf
     jmp end
+
+end:
+    mov rsp, rbp
+    pop rbp
+
+    mov rax, 60
+    xor rdi, rdi
+    syscall
