@@ -8,7 +8,6 @@
 
 extern printf
 extern fprintf
-extern exit
 extern scanf
 extern fopen
 extern fclose
@@ -18,7 +17,6 @@ extern sum_function
 extern subtraction_function
 extern multiply_function
 extern division_function
-extern exponentiation_function
 
 section .data
     ; Arquivos que armazenarão cada operação
@@ -40,41 +38,82 @@ section .data
     aux2            : db 0
 
 section .bss
-    recognize_file  resq 1
-    write_file      resq 1
+    recognize_file  resq 10
 
 section .text
     global main
 
-main:
+exponentiation_function:
     push rbp
     mov rbp, rsp
-    sub rsp, 0x20
 
-    ; Abrir arquivo
-    lea rdi, [file_name]
-    lea rsi, [open_mode]
-    call fopen
+    movss xmm2, xmm0
+	cvttss2si rdi, xmm1
 
-    mov [recognize_file], rax
+	cmp rdi, 0
+    je equals_zero
+	jl equals_one
 
-    mov rax, 1
-    mov rdi, 1
-    lea rsi, [operation_input]
-    mov edx, operation_inputL
-    syscall
+    cmp rdi, 1
+    je less_than_zero
+    jmp exponentiation_loop
 
-    lea rcx, [rbp-16]
-    lea rdx, [rbp-17]
-    lea rax, [rbp-12]
+    equals_zero:
+        cvtsi2ss xmm0,[aux1]
 
-    mov rsi, rax
-    mov edi, param_input
-    mov eax, 0
-    call scanf
+    less_than_zero:
+        mov rsp, rbp
+        pop rbp
+        ret
 
-    movzx eax, BYTE [rbp-17]
-    movsx eax, al
+    exponentiation_loop:
+        mulss xmm0, xmm2
+
+        dec rdi
+        cmp rdi, 1
+        jne exponentiation_loop
+        
+        mov rsp, rbp
+        pop rbp	
+        ret
+
+    equals_one:
+        xor r15b, r15b
+        mov r15b, 1
+        mov [aux2], r15b
+        
+        mov rsp, rbp
+        pop rbp	
+        ret
+
+main:
+	push rbp
+	mov rbp, rsp
+
+	sub rsp, 0x20
+	
+	lea rdi, [file_name]
+	lea rsi, [open_mode] 
+	call fopen 
+
+	mov [recognize_file], rax
+
+	mov rax, 1
+	mov rdi, 1
+	lea rsi, [operation_input]
+	mov edx, operation_inputL
+	syscall
+
+	lea rcx, [rbp-16]
+	lea rdx, [rbp-17]
+	lea rax, [rbp-12]
+
+	mov rsi, rax
+	mov edi, param_input
+	call scanf
+
+	movzx eax, BYTE [rbp-17]
+	movsx eax, al
 
     cmp eax, 0x61
     je sum
@@ -150,100 +189,101 @@ main:
         jmp final_result
 
     division_by_zero:
-        mov r8, 1
-        jmp final_result
+        jmp invalid_operation
 
     exponentiation:
-        movss xmm0, DWORD [rbp-16]
-        mov eax, DWORD [rbp-12]
-        movaps xmm1, xmm0
-        movd xmm0, eax
-        call exponentiation_function
+	movss xmm0, DWORD [rbp-16]
+	mov eax, DWORD [rbp-12]
+	movaps xmm1, xmm0
+	movd xmm0, eax
+	call exponentiation_function
 
-        movd eax, xmm0
-        mov DWORD [rbp-4], eax
-        mov BYTE [rbp-5], 0x5e
+	movd eax, xmm0
 
-        jmp final_result
+	mov DWORD  [rbp-4], eax
+	mov BYTE  [rbp-5], 0x5e
+	
+	jmp final_result
 
-    invalid_operation:
+
+invalid_operation:
         mov rdi, [recognize_file]
         mov rsi, output_error
 
-        movss xmm0, DWORD [rbp-16]
-        cvtss2sd xmm0, xmm0
-        movq rdx, xmm0
+        movss xmm1, DWORD [rbp-16]
+        cvtss2sd xmm1, xmm1
+        movq rdx, xmm1
 
         movzx eax, BYTE [rbp-17]
         movsx eax, al
         mov r8d, eax
 
-        movss xmm1, DWORD [rbp-12]
-        cvtss2sd xmm1, xmm1
-        movq r9, xmm1
+        movss xmm0, DWORD [rbp-12]
+        cvtss2sd xmm0, xmm0
+        movq r9, xmm0
         
         movsx edx, BYTE [rbp-17]
 	    mov rax, 0x03        
         call fprintf
         jmp close_file
 
-    final_result:
-        pxor xmm1, xmm1
-        cvtss2sd xmm1, DWORD [rbp-4]
+final_result:
+	pxor xmm1, xmm1
+	cvtss2sd xmm1, DWORD [rbp-4]
 
-        movss xmm0, DWORD [rbp-16]
-        cvtss2sd xmm0, xmm0
+	movss xmm0, DWORD [rbp-16]
+	cvtss2sd xmm0, xmm0
 
-        movsx edx, BYTE [rbp-5]
-        movss xmm2, DWORD [rbp-12]
+	movsx edx, BYTE [rbp-5]
+	movss xmm2, DWORD [rbp-12]
 
-        pxor xmm3, xmm3
-        cvtss2sd xmm3, xmm2
+	pxor xmm3, xmm3
+	cvtss2sd xmm3, xmm2
 
-        movq rax, xmm3
-        movapd xmm2, xmm1
-        movapd xmm1, xmm0
+	movq rax, xmm3
+	movapd xmm2, xmm1
+	movapd xmm1, xmm0
 
-        mov esi, edx
-        movq xmm0, rax
+	mov esi, edx
 
-        xor r15b, r15b
-        mov r15b, [aux2]
-        cmp r15b, 0
-        jne file_error
+	movq xmm0, rax
+	
+	xor r15b, r15b
+	mov r15b, [aux2]
+	cmp r15b, 0
+	jne file_error
 
-        cmp r8, 1
-        je file_error
+	cmp r8, 1
+	je file_error
 
-        ; Escrever arquivo
-        mov rdi, [recognize_file]
-        mov rsi, output
-        mov rax, 0x03
-        call fprintf
+	mov rdi, [recognize_file]
+	lea rsi, [output]
+	mov rax, 0x03
+	
+	call fprintf
+	
+	mov eax, 0
+	jmp close_file
 
-        ; Fecha arquivo
-        mov rdi, [recognize_file]
-        call fclose
-
-    file_error:
-        mov rdi, [recognize_file]
-        lea rsi, [output_error]
-        mov rax, 0x04
-
-        call fprintf
-        jmp end
+file_error:
+	mov rdi, [recognize_file]
+	lea rsi, [output_error]
+	mov rax, 0x04
+	
+	call fprintf
+	mov eax, 0
 
 close_file:
-    ; Fecha arquivo
-    mov rdi, [recognize_file]
-    call fclose
-
-    jmp end
+	mov rdi, [recognize_file]
+	call fclose
+	
+	leave
+	ret
 
 end:
     mov rsp, rbp
     pop rbp
 
     mov rax, 60
-    xor rdi, rdi
+    mov rdi, 0
     syscall

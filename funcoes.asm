@@ -6,7 +6,6 @@
 ; gcc -m64 -no-pie funcoes.o main.o -o programa_executavel.x
 ; ./programa_executavel.x
 
-; Funções externas do 'C':
 extern printf
 extern scanf
 extern fopen
@@ -109,47 +108,3 @@ division_function:
 
     pop rbp
     ret
-
-; Função de exponenciação
-exponentiation_function:
-    push rbp
-    mov rbp, rsp
-
-    movss xmm2, xmm0
-    cvttss2si rdi, xmm1
-    cmp rdi, 0
-
-    je equals_zero
-    jl equals_one
-
-    cmp rdi, 1
-    je less_than_zero
-    jmp exponentiation_loop
-
-equals_zero:
-    cvtsi2ss xmm0, [aux1]
-
-equals_one:
-    xor r15b, r15b
-    mov r15b, 1
-    mov [aux2], r15b
-
-    mov rsp, rbp
-    pop rbp
-    ret
-
-less_than_zero:
-    mov rsp, rbp
-    pop rbp
-    ret
-
-exponentiation_loop:
-    mulss xmm0, xmm2
-    dec rdi
-
-    cmp rdi, 1
-    jne exponentiation_loop
-        mov rsp, rbp
-    pop rbp
-    ret
-        jmp main
